@@ -5,8 +5,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas import ActionResult, EntryPayload, PageResult
+from app.schemas import ActionResult, EntryPayload, PageResult, ParserSamplePayload
 from app.services.parser import ParserService
+from app.store import store
 
 router = APIRouter(prefix="/api/parser", tags=["内容解析器"])
 
@@ -14,6 +15,34 @@ service = ParserService()
 
 LIST_FIELDS = ["模板编号", "目标字段名", "XPath表达式", "正则模式", "默认取值", "字段类型", "必填标识", "清洗函数"]
 STATUSES = ["草稿", "待校验", "已启用", "已停用"]
+
+
+@router.post("/sample-handoff", response_model=dict)
+def handoff_sample(payload: ParserSamplePayload) -> dict[str, Any]:
+    """把内容解析器页的同一份解析样本送往采集校验试验面板。
+
+    只做只读校验并回传交接描述符：不修改解析模板，也不落库；样本随后由
+    校验页调用 /api/validate/trials 使用，来源会被标记为 parser。
+    """
+    if not isinstance(payload.sample, dict) or not payload.sample:
+        raise HTTPException(status_code=400, detail="解析样本不能为空，且必须是字段名到取值的对象")
+    template = None
+    if payload.parser_template_id is not None:
+        template = store.find("parser", payload.parser_template_id)
+        if template is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"解析模板 {payload.parser_template_id} 不存在或已归档",
+            )
+    return {
+        "ok": True,
+        "message": "解析样本已交接给采集校验试验面板",
+        "sample_source": "parser",
+        "parser_template_id": payload.parser_template_id,
+        "模板编号": template.get("模板编号") if template else None,
+        "目标字段名": payload.target_field or (template.get("目标字段名") if template else None),
+        "sample": payload.sample,
+    }
 
 
 @router.get("", response_model=PageResult[dict])

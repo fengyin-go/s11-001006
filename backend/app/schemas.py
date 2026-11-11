@@ -28,6 +28,31 @@ class EntryPayload(BaseModel):
     remark: str | None = None
 
 
+class TrialPayload(BaseModel):
+    """离线样本试验请求。
+
+    rule_id 可空（允许直接粘贴表达式做试验）；rule_version 可空，空时读取
+    登记记录上的规则版本，仍为空则按初始版本 1 处理。
+    """
+
+    rule_id: int | None = None
+    sample: dict[str, Any] = Field(default_factory=dict)
+    expression: str | None = None
+    rule_version: int | None = None
+    expected: Any = None
+    tolerance: str | None = None
+    sample_source: str = "validate"
+    parser_template_id: int | None = None
+
+
+class ParserSamplePayload(BaseModel):
+    """内容解析器页送往校验页试验面板的解析样本。"""
+
+    sample: dict[str, Any] = Field(default_factory=dict)
+    parser_template_id: int | None = None
+    target_field: str | None = None
+
+
 
 class CollectorEntry(BaseModel):
     """采集任务明细结构。"""
